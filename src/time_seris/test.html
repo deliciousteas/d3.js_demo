@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>test</title>
+    <script src="../../utils/d3.min.js"></script>
+</head>
+<body>
+
+    <svg  id="mainsvg" class="svg"></svg>
+
+    <rect width=100 height=100 fill='#EEEEEE' />
+            <circle r=15 fill='#72bf67' cx=25 cy=30 />
+            <circle r=15 fill='rgb(100, 149, 237)' cx=75 cy=30 />
+    <script>
+        const svg = d3.select("svg")
+                .attr("width", 1600)
+                .attr("height", 800);
+
+// 模拟节点数据
+const nodes = [
+    { x: 100, y: 100 }, { x: -50, y: -30 }, { x: 1800, y: 900 }, { x: 500, y: 300 }
+];
+
+
+
+// 计算边界范围
+const xExtent = d3.extent(nodes, d => d.x); // [最小x, 最大x]
+const yExtent = d3.extent(nodes, d => d.y); // [最小y, 最大y]
+
+// 设置 viewBox，增加一些 padding
+const padding = 50;
+svg.attr("viewBox", [
+    xExtent[0] - padding,
+    yExtent[0] - padding,
+    xExtent[1] - xExtent[0] + 2 * padding,
+    yExtent[1] - yExtent[0] + 2 * padding
+].join(" "));
+
+
+
+
+
+
+
+
+
+
+    </script>
+</body>
+</html>

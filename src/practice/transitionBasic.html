@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>transitonBase</title>
+    <script src="../../utils/d3.min.js"></script>
+</head>
+<body>
+    <svg width ="960" height="400" id ="mainsvg">
+            <rect id="my_rect"
+            x ="10" y="20"
+            width ="50" height="50"
+            stroke="black" fill="red"/>
+
+
+
+    </svg>
+    <script>
+        //x、y是坐标变换，width和height是度量睡醒
+        d3.select("#my_rect")
+        .transition()
+        .duration(2000)
+        .attr("x",20)
+        .attr("y",200)
+        .transition()
+        .duration(2000)
+        .attr("x",10)
+        .attr("y",20);
+
+       
+
+        
+
+    </script>
+</body>
+</html>

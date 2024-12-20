@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>gdp_animation</title>
+    <script src="../../utils/d3.min.js"></script>
+</head>
+<body>
+    <svg width="1600" height="800" id="mainsvg"  class="svg"></svg>
+
+
+    <script>
+         const svg=d3.select('svg');
+            const width = svg.attr('width');
+            const height = svg.attr('height');
+            const margin = {top: 100, right: 80, bottom: 60, left: 150};
+            const innerWidth = width - margin.left - margin.right;
+            const innerHeight = height - margin.top - margin.bottom;
+            const mainGroup = svg.append('g')
+            .attr('transform', `translate(${margin.left}, ${margin.top})`);
+
+                
+            
+
+            const xScale = d3.scaleLinear();
+            const yScale = d3.scaleBand();
+            const colorScale = d3.scaleOrdinal();
+            const formatPercent = d3.format(".2f");
+            let  xAxis, yAxis;
+            let xAxisGroup, yAxisGroup;
+
+            mainGroup.append('text')
+            .attr('fill', 'black')
+            .attr('font-size', '50px')
+            .attr('x', innerWidth/2)
+            .attr('y', innerHeight/2)
+            .attr('id', 'yeartext');
+
+
+            const render = async function(data){
+                console.log(data);
+                console.log(data[0].year);
+
+
+                    yScale.domain(data.map(d => d.country)).range([0,innerHeight]).padding(0.1);
+                    xScale.domain([0, d3.max(data, d => d.gdp)]).range([0,innerWidth]);
+
+                    let enter=mainGroup.selectAll('rect').data(data, d => d.country).enter().append('rect')
+                    .attr('height',yScale.bandwidth())
+                    .attr('y', d =>yScale(d => d.country))
+                    .attr('x' , 0)
+                    .attr('fill', d => colorScale(d.country));
+
+                    let entertext=mainGroup.selectAll('.datatext').data(data, d => d.country).enter().append('text')
+                    .attr('class', 'datatext')
+                    .attr('alignment-baseline', 'central')//align to its parent node
+                    .attr('x', 1)
+                    .attr('y' , d => yScale.bandwidth()/2+yScale(d.country))
+                    .attr('fill', 'black');
+
+                    d3.select('#yeartext').text(data[0].year).raise();//再次插入
+
+
+                    let transition=d3.transition().duration(500).ease(d3.easeLinear);//设计变换
+                
+                    mainGroup.selectAll('rect').merge(enter).transition(transition)
+                    .attr('width',d => xScale((d.gdp)))
+                    .attr('y' , d => yScale(d.country))
+                    .attr('height', yScale.bandwidth());
+
+
+                    mainGroup.selectAll('.datatext').merge(entertext).transition(transition)//过渡过程中逐步更新文本
+                    .attr('x', d => 30+xScale((d.gdp)))
+                    .attr('y' , d => yScale.bandwidth()/2 + yScale(d.country))
+                    //这是更新rec的数字文本
+                    .tween('text', function(d){
+                        var i = d3.interpolate(this.textContent, d.gdp);
+                        
+                        return function(t){
+                            this.textContent = formatPercent(i(t));
+                        }
+                    });
+
+                    xAxisGroup.transition(transition).call(xAxis);
+                    yAxisGroup.transition(transition).call(yAxis);
+                    d3.selectAll('.tick text').attr('font-size', '1.5em');
+                    await transition.end();
+
+
+            }
+
+            d3.csv('../../data//time_seris/gdp_data_source.csv').then(async data => {
+                data.forEach(d => {
+                    for (let key in d) {
+                        if (!isNaN(d[key])) {
+                            d[key] = +d[key];
+                        }
+                    }
+                });
+                
+                //215个国家，216个数据，第一列是年份，（216个key，只有year是年份，其他都是国家名字）总共跨过58个年头，其中没有值就是0
+                const years =Array.from(new Set(data.map(d => d.year)));
+                years.sort((a,b) => a-b);
+               
+                
+                const countries = Object.keys(data[0]).filter(key => key !== 'year');
+                
+                console.log(countries);
+                colorScale.range(['black']);
+   
+
+
+                //初始化坐标
+                xScale.range([0, innerWidth]);
+                console.log(xScale.range());
+                yScale.range([0, innerHeight]).padding(0.1);
+
+                xAxis=d3.axisBottom(xScale);
+                yAxis=d3.axisLeft(yScale);
+                xAxisGroup=mainGroup.append('g').call(xAxis)
+                .attr('transform',`translate(0, ${innerHeight})`);
+                yAxisGroup=mainGroup.append('g').call(yAxis);
+
+                xAxisGroup.append('text').attr('class', 'axisTitle').text('GDP排名')
+                .attr('x',innerWidth/2)
+                .attr('y', 60);
+                yAxisGroup.append('text').attr('class', 'axisTitle').text('国家')
+                .attr('transform', 'rotate(-90)')//旋转后，旋转后的文本不在沿着y轴水平排列，对象的坐标轴也发生旋转变化
+                .attr('x', -innerHeight/2)
+                .attr('y', -60);
+
+                d3.selectAll('.axisTitle')
+                .attr('text-anchor', "middle")
+                .attr('fill', 'black')
+                .attr('font-size', '2em');
+
+                d3.selectAll('.tick text')
+                .attr('font-size', '1.5em');
+
+              
+
+
+              
+
+                const processedData = [];
+                for (let i = 0; i < years.length; i++) {
+                    const years_data = data.filter(d => d.year === years[i]);
+
+                    years_data.forEach(d => {
+                        countries.forEach(country => {
+                            processedData.push({
+                                year: d.year,
+                                country: country,
+                                gdp: d[country]
+                            });
+                        });
+                    });
+                }
+                //默认为升序排序
+                processedData.sort((a, b) => {
+                    if (a.year === b.year) {
+                        return b.gdp - a.gdp;
+                    }
+                    return a.year - b.year;
+                });
+
+                for (let i = 0; i <years.length; i++){
+                    data_years=processedData.filter(d => d.year === years[i]);
+                    console.log(data_years);
+                    data_top10=data_years.slice(0, 10);
+                    console.log(data_top10);
+                    await render(data_top10);
+                }
+          
+            });
+    </script>
+</body>
+</html>

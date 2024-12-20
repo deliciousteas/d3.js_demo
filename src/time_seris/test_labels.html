@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>水浒传人物每章节出现可视化</title>
+    <script src="../../utils/d3.min.js"></script>
+    <link rel="stylesheet" href="./styles.css">
+    <style>
+        #labels {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .label-item {
+            display: flex;
+            align-items: center;
+        }
+        .label-item rect {
+            width: 15px;
+            height: 15px;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="main-area">
+            <div id="stack-area"></div>
+            <div id="time-line"></div>
+        </div>
+        <div id="labels"></div>
+    </div>
+
+    <script>
+        // =============================
+        // 1. SVG Setup
+        // =============================
+        const timeLineWidth = 1200, timeLineHeight = 600;
+        const stackAreaWidth = 1200, stackAreaHeight = 600;
+
+        // Margins for timelines and stack areas
+        const margin_stack_area = { top: 20, right: 20, bottom: 60, left: 60 };
+        const innerWidth_stack_area = stackAreaWidth - margin_stack_area.left - margin_stack_area.right;
+        const innerHeight_stack_area = stackAreaHeight - margin_stack_area.top - margin_stack_area.bottom;
+
+        // Create SVG for stack area
+        const svg_stack_area = d3.select("#stack-area").append("svg")
+            .attr("width", stackAreaWidth)
+            .attr("height", stackAreaHeight);
+        const mainGroup_stack_area = svg_stack_area.append("g")
+            .attr("transform", `translate(${margin_stack_area.left}, ${margin_stack_area.top})`);
+
+        const labelDiv = d3.select("#labels");
+
+        // =============================
+        // 2. Load Data
+        // =============================
+        d3.csv("../../data/time_seris//水浒各章节人物出场次数.csv").then(data => {
+            const chapter = data.map(d => +d.chapter);
+            const heros_name = data.columns.slice(1);
+            console.log(`共有${chapter.length}章, ${heros_name.length}个人物`);
+
+            // Summarize total counts per chapter
+            const sum_data = data.map(d => d3.sum(Object.values(d).slice(1)));
+            
+            // Sort heroes by appearance times
+            const heros_showup_times = heros_name.map(name => ({
+                name: name,
+                total: d3.sum(data.map(d => +d[name]))
+            })).sort((a, b) => b.total - a.total);
+
+            // =============================
+            // 3. Color Mapping Scheme
+            // =============================
+            const topHeros = heros_showup_times.slice(0, 30).map(d => d.name);
+            const colorTop = d3.scaleOrdinal(d3.schemeSet3).domain(topHeros);
+
+            // =============================
+            // 4. Stack Area Visualization with Hover Event
+            // =============================
+            const series = d3.stack().keys(heros_name);
+            const stackData = series(data);
+
+            const xScale_stack = d3.scaleLinear()
+                .domain(d3.extent(chapter))
+                .range([0, innerWidth_stack_area]);
+
+            const yScale_stack = d3.scaleLinear()
+                .domain([0, d3.max(data, d => d3.sum(Object.values(d).slice(1)))])
+                .range([innerHeight_stack_area, 0]);
+
+            const area = d3.area()
+                .x(d => xScale_stack(d.data.chapter))
+                .y0(d => yScale_stack(d[0]))
+                .y1(d => yScale_stack(d[1]))
+                .curve(d3.curveStepAfter);
+
+            mainGroup_stack_area.selectAll("path")
+                .data(stackData)
+                .enter().append("path")
+                .attr("fill", d => colorTop(d.key) || "#ddd")
+                .attr("d", area)
+                .on("mouseover", (event, d) => {
+                    const chapterIndex = d3.select(event.target).__data__.index;
+                    updateLabels(chapterIndex, data, heros_showup_times);
+                });
+
+            // Initialize Labels
+            updateLabels(0, data, heros_showup_times);
+
+            function updateLabels(chapterIndex, data, heroList) {
+                labelDiv.html("");
+                const chapterData = data[chapterIndex];
+                const activeHeroes = heroList.filter(hero => +chapterData[hero.name] > 0);
+                const inactiveHeroes = heroList.filter(hero => +chapterData[hero.name] === 0);
+
+                // Add active heroes with color rectangles
+                activeHeroes.forEach(hero => {
+                    const row = labelDiv.append("div").attr("class", "label-item");
+                    row.append("svg")
+                        .append("rect")
+                        .attr("fill", colorTop(hero.name))
+                        .attr("width", 15).attr("height", 15);
+                    row.append("span").text(` ${hero.name}`);
+                });
+
+                // Add inactive heroes in grey
+                // inactiveHeroes.forEach(hero => {
+                //     const row = labelDiv.append("div").attr("class", "label-item");
+                //     row.append("svg")
+                //         .append("rect")
+                //         .attr("fill", "#ccc")
+                //         .attr("width", 15).attr("height", 15);
+                //     row.append("span").text(` ${hero.name}`);
+                // });
+            }
+        });
+    </script>
+</body>
+</html>

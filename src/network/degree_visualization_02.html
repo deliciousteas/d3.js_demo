@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>基于中心性理论的图可视化</title>
+    <script src="../../utils/d3.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+        svg {
+            display: block;
+            margin: 0 auto;
+        }
+        .control-button {
+            position: absolute;
+            font-size: 18px;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        #degree { top: 50px; left: 20px; }
+        #closeness { top: 100px; left: 20px; }
+        #betweeness { top: 150px; left: 20px; }
+        #clear { top: 200px; left: 20px; }
+    </style>
+</head>
+<body>
+
+    <svg width="100%" height="100%" id="mainsvg" class="svgs"></svg>
+    <button id="degree" class="control-button">度系数</button>
+    <button id="closeness" class="control-button">邻近中心性</button>
+    <button id="betweeness" class="control-button">中介中心性</button>
+    <button id="clear" class="control-button">清除</button>
+
+    <script>
+        let svg = d3.select('svg');
+        let width = window.innerWidth, height = window.innerHeight;
+        let nodes;
+        let simulation;
+        let circles, lines;
+        let links;
+
+        const colors = d3.schemePaired;
+
+        const render_init = function() {
+            lines = svg.selectAll('line').data(links).enter().append('line')
+                .attr('stroke', 'black')
+                .attr('stroke-width', 1)
+                .attr('opacity', 0.5);
+
+            circles = svg.selectAll('circle').data(nodes).join('circle')
+                .attr('r', 12)
+                .attr('fill', 'blue');
+                // .call(drag(simulation));
+
+            texts = svg.selectAll('text').data(nodes).join('text')
+                .attr('text-anchor', 'middle')
+                .attr('font-size', '12px')
+                .attr('fill', 'black')
+                .attr("fill", "none")
+                .attr("stroke", "white")
+                .attr("stroke-width", 1);
+
+            const colorScale = d3.scaleOrdinal()
+                .domain([...new Set(nodes.map(d => d.type))])
+                .range(colors);
+
+            circles.attr('fill', d => colorScale(d.type));
+        };
+
+        const ticked = function() {
+            lines
+                .attr('x1', d => d.source.x)
+                .attr('x2', d => d.target.x)
+                .attr('y1', d => d.source.y)
+                .attr('y2', d => d.target.y);
+
+            circles
+                .attr('cx', d => d.x)
+                .attr('cy', d => d.y);
+
+            texts
+                .attr('x', d => d.x)
+                .attr('y', d => d.y)
+                .text(d => d.id);
+        };
+
+        function drag(simulation) {
+            function dragstarted(event) {
+                if (!event.active) simulation.alphaTarget(1).restart();
+                event.subject.fx = event.subject.x;
+                event.subject.fy = event.subject.y;
+            }
+
+            function dragged(event) {
+                event.subject.fx = event.x;
+                event.subject.fy = event.y;
+            }
+
+            function dragended(event) {
+                if (!event.active) simulation.alphaTarget(0);
+                event.subject.fx = null;
+                event.subject.fy = null;
+            }
+
+            return d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended);
+        }
+
+        d3.json('../../data/network/graph_data_2.json').then(data => {
+            nodes = data.nodes;
+            links = data.edges.map(d => ({
+                source: d['source'],
+                target: d['target'],
+            }));
+
+            render_init();
+
+            simulation = d3.forceSimulation(nodes)
+                .force('manybody', d3.forceManyBody().strength(-100))
+                .force('center', d3.forceCenter(width / 2, height / 2))
+                .force('link', d3.forceLink(links).id(d => d.id).strength(0.5).distance(150))
+                .on('tick', ticked)
+                .on('end', () => {
+                    const xExtent = d3.extent(nodes, d => d.x);
+                    const yExtent = d3.extent(nodes, d => d.y);
+
+                    const padding = 50;
+                    const newWidth = xExtent[1] - xExtent[0] + padding * 10;
+                    const newHeight = yExtent[1] - yExtent[0] + padding * 10;
+
+                    svg
+                        .attr('width', newWidth)
+                        .attr('height', newHeight)
+                        .attr('viewBox', [xExtent[0] - padding, yExtent[0] - padding, newWidth, newHeight].join(' '));
+                });
+
+            document.getElementById('degree').addEventListener('click', () => {
+                circles.transition()
+                    .duration(500)
+                    .attr('r', d => d.degree_centrality * 500)
+                    .attr('stroke-width', d => d.degree_centrality * 500); 
+            });
+
+            document.getElementById('closeness').addEventListener('click', () => {
+                circles.transition()
+                    .duration(500)
+                    .attr('r', d => d.closeness_centrality * 2000)
+                    .attr('stroke-width', d => d.closeness_centrality * 2000);
+            });
+
+            document.getElementById('betweeness').addEventListener('click', () => {
+                circles.transition()
+                    .duration(500)
+                    .attr('r', d => d.betweenness_centrality * 100)
+                    .attr('stroke-width', d => d.betweenness_centrality * 100);
+            });
+
+            document.getElementById('clear').addEventListener('click', () => {
+                circles.transition()
+                    .duration(500)
+                    .attr('r', 12)
+                    .attr('stroke-width', 0);
+            });
+        });
+    </script>
+</body>
+</html>

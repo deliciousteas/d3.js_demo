@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransitionInherit</title>
+    <script src="../../utils/d3.min.js"></script>
+</head>
+<body>
+    <!-- <svg width ="960" height="600" id ="mainsvg">
+        <rect id="my_rect"
+        x ="10" y="20"
+        width ="50" height="50"
+        stroke="black" fill="red"/> -->
+
+
+
+</svg>
+
+<script>
+    // const svg = d3.select("#mainsvg");
+    // const height =svg.attr('height');
+    // const width =svg.attr('width');
+    // //attr也是d3.js的select使用方法，设置name-value方法
+    // var rec = d3.select("#my_rect")
+    // .transition().duration(2000).ease(d3.easeQuad).attr('x',100).attr('y',200)
+    // .transition().attr("y", '500')
+    // .transition().attr("x", '310')
+    // .transition().attr("y", '200')
+    // .transition().attr("x", '100')
+       
+    // .transition().on('start', function repeat(){
+    //     d3.active(this).attr('fill', 'blue')//active持续性transition
+    //     .transition().attr('fill', 'red')
+    //     .transition().attr('x',80).attr('y',90)
+    //     .transition().on('start', repeat)//transition本质是一个状态管理器，递归调用。实际上是异步执行，不会导致堆栈溢出。
+    // })
+
+    // console.log(d3.select("#my_rect").attr('x'));
+   
+    
+const n = 4000; // 数据点数量
+const whiteblue = d3.interpolateRgb("#eee", "steelblue");
+const blueorange = d3.interpolateRgb("steelblue", "orange");
+const orangewhite = d3.interpolateRgb("orange", "#eee");
+
+const root = d3.select("body")
+  .append("div")
+  .style("display", "flex")
+  .style("flex-wrap", "wrap")
+  .style("padding-bottom", "10px");
+
+const div = root
+  .selectAll()
+  .data(d3.range(n))//返回n个元素的数组
+  .join("div")
+    .style("width", "10px")
+    .style("height", "10px")
+    .style("margin", "1px 0 0 1px")
+    .style("background-color", "#eee");
+
+div.transition()
+  .delay((d, i) => i + Math.random() * n / 4)//对div选中的data，的每个元素，延迟时间
+  .ease(d3.easeLinear)
+  .on("start", function repeat() {
+    d3.active(this)
+        .styleTween("background-color", () => whiteblue)//逐渐编程白蓝色
+      .transition()
+        .delay(1000)
+        .styleTween("background-color", () => blueorange)//逐渐编程烂-橘色
+      .transition()
+        .delay(1000)
+        .styleTween("background-color", () => orangewhite)//在逐渐变成橘色-灰色
+      .transition()
+        .delay(n/2)//n毫秒后，重复执行
+        .on("start", repeat);
+  });
+
+
+
+
+
+    
+
+
+
+</script>
+</body>
+</html>

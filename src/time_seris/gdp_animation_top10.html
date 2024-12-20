@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GDP_TOP10</title>
+    <script src="../../utils/d3.min.js"></script>
+    <style>
+        /* 让SVG填满整个浏览器窗口 */
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden; /* 去掉滚动条 */
+        }
+        svg {
+            display: block; /* 去掉SVG外部的空白区域 */
+        }
+    </style>
+</head>
+<body>
+    <svg id="mainsvg"></svg>
+    <script>
+        const svg = d3.select('svg');
+
+        // 获取浏览器窗口的宽度和高度
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+
+        svg.attr('width', width).attr('height', height);
+
+        const margin = { top: 100, right: 80, bottom: 60, left: 150 };
+        const innerWidth = width - margin.left - margin.right;
+        const innerHeight = height - margin.top - margin.bottom;
+
+        const mainGroup = svg.append('g')
+            .attr('transform', `translate(${margin.left}, ${margin.top})`);
+
+        const xValue = d => d.gdp;
+        const yValue = d => d.country;
+
+        const xScale = d3.scaleLinear();
+        const yScale = d3.scaleBand();
+        const colorScale = d3.scaleOrdinal();
+        const formatPercent = d3.format(".2f");
+
+        let xAxis, yAxis;
+        let xAxisGroup, yAxisGroup;
+
+        mainGroup.append('text')
+            .attr('fill', 'black')
+            .attr('font-size', '50px')
+            .attr('font-family', 'fantasy')
+            .attr('x', innerWidth / 2)
+            .attr('y', innerHeight / 2)
+            .attr('id', 'yeartext');
+
+        mainGroup.append('text')
+            .attr('fill', 'black')
+            .attr('font-size', '2em')
+            .attr('font-family', 'fantasy')
+            .attr('x', -5)
+            .attr('y', -50)
+            .attr('id', 'danwei');
+        
+
+        const render = async function(data) {
+            console.log(data);
+            yScale.domain(data.map(d => d.country)).range([0, innerHeight]).padding(0.1);
+            xScale.domain([0, d3.max(data, d => d.gdp / 1000000000)]).range([0, innerWidth]);
+
+            let enter = mainGroup.selectAll('rect').data(data, d => d.country).enter().append('rect')
+                .attr('height', yScale.bandwidth())
+                .attr('y', d => yScale(d.country))
+                .attr('x', 0)
+                .attr('fill', d => colorScale(d.country));
+
+            let enterText = mainGroup.selectAll('.datatext').data(data, d => d.country).enter().append('text')
+                .attr('class', 'datatext')
+                .attr('alignment-baseline', 'central')
+                .attr('x', 8)
+                .attr('y', d => yScale.bandwidth() / 2 + yScale(d.country))
+                .attr('fill', 'black');
+
+            d3.select('#yeartext').text(data[0].year).raise();
+            d3.select('#danwei').text("美元：亿").raise();
+
+            let transition = d3.transition().duration(500).ease(d3.easeLinear);
+
+            mainGroup.selectAll('rect').merge(enter).transition(transition)
+                .attr('width', d => xScale(d.gdp / 1000000000))
+                .attr('y', d => yScale(d.country))
+                .attr('height', yScale.bandwidth())
+                .attr('fill', d => colorScale(d.country));
+
+            mainGroup.selectAll('.datatext').merge(enterText).transition(transition)
+                .attr('x', d => 30 + xScale(d.gdp / 1000000000))
+                .attr('y', d => yScale.bandwidth() / 2 + yScale(d.country))
+                .tween('text', function(d) {
+                    var i = d3.interpolate(this.textContent, d.gdp / 1000000000);
+
+                    return function(t) {
+                        this.textContent = formatPercent(i(t));
+                    };
+                });
+
+            xAxisGroup.transition(transition).call(xAxis);
+            yAxisGroup.transition(transition).call(yAxis);
+
+            d3.selectAll('.tick text').attr('font-size', '1.5em');
+            await transition.end();
+        }
+
+        d3.csv('../../data/time_seris/gdp_data_source.csv').then(async data => {
+            data.forEach(d => {
+                for (let key in d) {
+                    if (!isNaN(d[key])) {
+                        d[key] = +d[key];
+                    }
+                }
+            });
+
+            const years = Array.from(new Set(data.map(d => d.year)));
+            years.sort((a, b) => a - b);
+
+            const countries = Object.keys(data[0]).filter(key => key !== 'year');
+            const processedData = [];
+            for (let i = 0; i < years.length; i++) {
+                const yearsData = data.filter(d => d.year === years[i]);
+                yearsData.forEach(d => {
+                    countries.forEach(country => {
+                        processedData.push({
+                            year: d.year,
+                            country: country,
+                            gdp: d[country]
+                        });
+                    });
+                });
+            }
+
+            processedData.sort((a, b) => {
+                if (a.year === b.year) {
+                    return b.gdp - a.gdp;
+                }
+                return a.year - b.year;
+            });
+
+            console.log(processedData);
+
+            const top10 = [];
+            for (let i = 0; i < years.length; i++) {
+                const yearsData = processedData.filter(d => d.year === years[i]);
+                const top10Data = yearsData.slice(0, 10);
+                top10.push(top10Data);
+            }
+
+            const countryTop10 = Array.from(new Set(top10.map(d => d.country)));
+            colorScale.domain(countryTop10);
+            const sp = d3.scalePoint().domain(countryTop10).range([0, 1]);
+            colorScale.range(countryTop10.map(d => d3.interpolatePRGn(sp(d))));
+
+            xScale.range([0, innerWidth]);
+            yScale.range([0, innerHeight]).padding(0.1);
+
+            xAxis = d3.axisBottom(xScale);
+            yAxis = d3.axisLeft(yScale);
+            xAxisGroup = mainGroup.append('g').call(xAxis);
+            yAxisGroup = mainGroup.append('g').call(yAxis);
+            xAxisGroup.attr('transform', `translate(0, ${innerHeight})`);
+            xAxisGroup.append('text').attr('class', 'axisTitle').text('GDP排名')
+                .attr('x', innerWidth / 2)
+                .attr('y', 45)
+                .attr('fill', 'black')
+                .attr('font-size', '2em');
+
+            yAxisGroup.append('text').attr('class', 'axisTitle').text('国家')
+                .attr('transform', 'rotate(-90)')
+                .attr('x', -innerHeight / 2)
+                .attr('y', -70)
+                .attr('fill', 'black')
+                .attr('font-size', '2em');
+
+            top10.sort((a, b) => {
+                if (a.year === b.year) {
+                    return b.gdp - a.gdp;
+                }
+                return a.year - b.year;
+            });
+
+            console.log(top10);
+
+            for (let i = 0; i < top10.length; i++) {
+                await render(top10[i]);
+            }
+        });
+
+        // 调整窗口大小时更新SVG大小
+       
+    </script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+body {
+
+    margin :0;
+    padding: 0;
+    background-color: #eee;
+    font-family: Arial, sans-serif;
+    display: flex;
+}
+
+#container{
+    margin-top:50px;
+    margin-left:20px;
+    display:grid;
+    grid-template-columns: 2fr 1fr;//定义grid
+    grid-template-rows: auto;
+    width:90%;//相较于父元素，占据90%
+    height:100%;
+    gap:2px;
+}
+
+#main-area{
+    display:flex;
+    flex-direction:column;
+    background-color:#fff;
+    border-radius:2px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    gap:2px;
+}
+
+#stack-area {
+    flex: 3; /* 占主区域的3/4空间 */
+    background: #dbe9ff;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+  }
+#time-line{
+flex: 1; /* 占主区域的1/4空间 */
+background: #ffe6e6;
+border-radius: 8px;
+border: 1px solid #ccc;
+}
+
+
+
+/* Label container */
+#labels {
+    background: #eaffd0;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    overflow-y: auto; /* Allow scrolling when labels overflow */
+    padding: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 5px;
+    max-height: 80vh; /* Limit height of labels area */
+}
+
+/* Label item styling */
+.label-item {
+    display: flex;
+    align-items: center;
+    gap: 5px; /* Space between SVG color block and label text */
+    width: 100%;
+    height: auto;
+    padding: 5px;
+    margin-bottom: 5px;
+}
+
+.label-item svg {
+    margin-right: 5px;
+}
+
+.label-item span {
+    margin: 0;
+    font-size: 14px;
+}
+

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>水浒传人物每章节出现可视化</title>
+    <script src="../../utils/d3.min.js"></script>
+    <link rel ="stylesheet" href="./styles.css">
+</head>
+<body>
+    <div id ="container">
+    <div id ="main-area">
+        <div id="stack-area"></div>
+
+        <div id ="time-line"></div>
+    </div>
+    <div id="labels">labels</div>
+    </div>
+
+    <script>
+
+        //声明time-line的svg
+        const svg_time_line = d3.select("#time-line").append("svg");
+        const width_time_line =1200;
+        const height_time_line = 600;
+        svg_time_line.attr("width", width_time_line).attr("height", height_time_line);
+
+        const margin_time_line = {top: 20, right: 20, bottom: 60, left: 20};
+        const innerWidth_time_line = width_time_line - margin_time_line.left - margin_time_line.right;
+        const innerHeight_time_line = height_time_line - margin_time_line.top - margin_time_line.bottom;
+        const mainGroup_time_line = svg_time_line.append("g").attr("transform", `translate(${margin_time_line.left}, ${margin_time_line.top})`);
+
+       
+        //声明stack-area的svg
+        const svg_stack_area = d3.select("#stack-area").append("svg");
+        const width_stack_area = 1200;
+        const height_stack_area = 600;
+        svg_stack_area.attr("width", width_stack_area).attr("height", height_stack_area);
+        
+        const margin_stack_area = {top: 20, right: 20, bottom: 60, left: 20};
+        const innerWidth_stack_area = width_stack_area - margin_stack_area.left - margin_stack_area.right;
+        const innerHeight_stack_area = height_stack_area - margin_stack_area.top - margin_stack_area.bottom;
+        const mainGroup_stack_area = svg_stack_area.append("g").attr("transform", `translate(${margin_stack_area.left}, ${margin_stack_area.top})`);
+
+
+
+        //读取文件
+        d3.csv("../../data/time_seris//水浒各章节人物出场次数.csv").then(async data=>{
+             
+
+            let chapter = data.map(d => +d.chapter);
+            let heros_name=data.columns.slice(1);
+            console.log(`共有${chapter.length}章,${heros_name.length}个人物`);
+           
+            
+
+            //去除0值
+            let process_data = data.map(d => {
+                let obj = {};
+                for (let key in d) {
+                    if (+d[key] !== 0) {
+                        obj[key] = +d[key];
+                    }
+                }
+                return obj;
+            });
+            console.log(process_data);
+           
+            // 计算每一章的人物出场总数
+            let sum_data = process_data.map(d => {
+                let values = Object.values(d).slice(1);
+                return d3.sum(values);
+            });
+            console.log(sum_data);
+
+            //折线图定义数据映射规则
+            let time_line_chapter = chapter;
+            let time_line_sum = sum_data;
+
+            let time_line_data = time_line_chapter.map((chapter, index) => ({
+            chapter: chapter,
+            sum: time_line_sum[index]
+            }));
+            console.log(time_line_data);
+
+            let xScale_time_line =d3.scaleLinear()
+            .domain([d3.min(time_line_chapter),d3.max(time_line_chapter)])
+            .range([0,innerWidth_time_line]).nice();
+
+            let yScale_time_line = d3.scaleLinear()
+            .domain([d3.min(time_line_sum),d3.max(time_line_sum)])
+            .range([innerHeight_time_line,0]).nice();
+
+            const line = d3.line()
+            .x(d =>xScale_time_line(d.chapter))
+            .y(d =>yScale_time_line(d.sum));
+
+            mainGroup_time_line.append('g')
+            .attr('transform',`translate(10,${innerHeight_time_line+10})`)
+            .call(d3.axisBottom(xScale_time_line)
+            .ticks(time_line_chapter.length/5)
+            .tickPadding(5))
+            .append("text")
+            .attr('x', innerWidth_time_line / 2)
+            .attr('y', 40)
+            .attr("font-size", "2em")
+            .attr("fill", "black")
+            .text('章节');
+            
+            
+
+            mainGroup_time_line.append('g')
+            .attr('transform',`translate(20,10)`)
+            .call(d3.axisLeft(yScale_time_line))
+            .attr("stop-color", "black")
+            .append("text")
+            .text('人物出场总次数/章节')
+            .attr('x',110)
+            .attr('y',2)
+            .attr('fill','black')
+            .attr('font-size','1em');
+
+
+            mainGroup_time_line.selectAll('path')
+            .data(time_line_data)
+            .enter()
+            .append('path')
+            .attr('fill','none')
+            .attr('stroke','steelblue')
+            .attr('transform',`translate(10,10)`)
+            .attr('stroke-width',2.3)
+            .attr('d',line(time_line_data));
+            
+
+    
+        
+        // 添加brush功能
+        const brush = d3.brushX()
+            .extent([[10, 10], [innerWidth_time_line, innerHeight_time_line]])
+            .on("brush end", brushed);
+
+        mainGroup_time_line.append("g")
+            .attr("class", "brush")
+            .call(brush);
+
+       // 选中的章节
+       let brushedChapters = [];
+        //选中的功能
+        function brushed(event) {
+            if (event.selection) {
+            const [x0, x1] = event.selection.map(xScale_time_line.invert);
+            brushedChapters = time_line_data.filter(d => x0 <= d.chapter && d.chapter <= x1).map(d => d.chapter);
+            console.log(brushedChapters);
+           
+            //过滤数据,brush选中的数据
+            let data_filter = process_data.filter(d => brushedChapters.includes(+d.chapter));
+           
+
+            let data_filter_chapter = data_filter.map(d => +d.chapter);
+            let data_filter_sum = data_filter.map(d => {
+                let values = Object.values(d).slice(1);
+                return d3.sum(values);
+            });
+
+        
+           
+
+            //可视化
+                
+            }
+        }
+    
+
+        // 取消选中功能
+        svg_time_line.on("dblclick", () => {
+            mainGroup_time_line.selectAll("path")
+                .attr("stroke", "steelblue");
+            mainGroup_time_line.select(".brush").call(brush.move, null);
+        });
+        
+       //声明stack-area的svg,创建stack-area的svg
+        //定义x、y、color映射规则    
+        const colorScale = d3.scaleOrdinal();
+        const xScale_stack = d3.scaleLinear();
+        const yScale_stack = d3.scaleLinear();
+            //color映射规则
+        colorScale.domain(heros_name);
+        const sp = d3.scalePoint().domain(heros_name).range([0, 1]);
+        colorScale.range(heros_name.map(d => d3.interpolateRainbow(sp(d))));
+        //坐标轴映射关系
+        xScale_stack.domain([1,120]).range([0,innerWidth_stack_area]);
+        yScale_stack.domain([d3.min(time_line_sum),d3.max(time_line_sum)]).range([innerHeight_stack_area,0]);
+
+        let xAxis_stack =d3.axisBottom(xScale_stack);
+        let yAxis_stack =d3.axisLeft(yScale_stack);
+        let xAxisGroup_stack = mainGroup_stack_area.append("g").call(xAxis_stack);
+        let yAxisGroup_stack = mainGroup_stack_area.append("g").call(yAxis_stack);
+        
+        xAxisGroup_stack.attr("transform",`translate(0,${innerHeight_stack_area})`)
+        .append("text")
+        .attr('class', 'axis-label')
+        .text("章节").attr('x',600).attr('y',40)
+        .attr('fill', 'black').attr('font-size', '2em');
+
+        yAxisGroup_stack.attr("transform",`translate(10,0)`)
+        .append("text").attr('class', 'axis-label')
+        .text("人物出场次数").attr('x',140).attr('y',10)
+        .attr('fill', 'black').attr('font-size', '2em');
+
+        var series = d3.stack()
+            .keys(heros_name)
+            .order(d3.stackOrderAscending);
+
+        var stackData = series(data);
+        
+        
+        const area = d3.area()
+        .x(d => xScale_stack(d.data.chapter))
+        .y0(d => yScale_stack(d[0]))
+        .y1(d => yScale_stack(d[1]));
+        svg_stack_area.append('g')
+        .attr('transform', `translate(10,10)`)
+        .selectAll('path')
+        .data(stackData)
+        .join('path')
+        .attr('fill', d => colorScale(d.key))
+        .attr('d', area)
+        .append('title')
+        .text(d => d.key);
+
+  
+
+        });
+    </script>
+</body>
+

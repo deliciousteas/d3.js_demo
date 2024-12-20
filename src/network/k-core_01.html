@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>k-core</title>
+    <script src="../../utils/d3.min.js"></script>
+</head>
+<body>
+    <svg width="1800" height="920" id="mainsvg" class ="svgs"></svg>
+    <button id="k1">k=1</button>
+    <button id="k2">k=2</button>
+    <button id="clear">clear</button>
+<script>
+
+
+
+    let svg=d3.select('svg');
+    var width = svg.attr('width'),height = svg.attr('height');
+    let nodes;
+    let simualtion;
+    let circles,lines;
+    let links;
+
+
+    const render_init = function(){
+        lines = svg.selectAll('line').data(links).enter().append('line')
+        .attr('stroke', 'black')
+        .attr('stroke-width', 1)
+        .attr('opacity', 0.5);
+
+
+        circles = svg.selectAll('circle').data(nodes).join('circle')
+        .attr('r' , 15)
+        .attr('fill', 'blue')
+        
+        texts = svg.selectAll('text').data(nodes).join('text')
+        .attr('text-anchor', 'middle')
+        .attr('font-size', '12px')
+        .attr('fill', 'black')
+        .attr("fill", "none")
+        .attr("stroke", "white")
+        .attr("stroke-width", 1);
+        
+        
+        
+    }
+   
+    //逐帧运行
+    const ticked = function() {
+    lines
+        .attr('x1', d => d.source.x)
+        .attr('x2', d => d.target.x)
+        .attr('y1', d => d.source.y)
+        .attr('y2', d => d.target.y);
+
+    circles
+        .attr('cx', d => d.x)
+        .attr('cy', d => d.y);
+    texts
+        .attr('x', d => d.x) 
+        .attr('y', d => d.y) 
+        .text(d => d.id);
+}
+    d3.json('../../data//network/graph_data.json').then(data => {
+        
+        
+        
+        nodes = data.nodes;
+        
+        console.log(nodes);
+       
+        
+        console.log(data.edges);
+        links = data.edges.map((d, i) => ({
+            source: d['source'],
+            target: d['target'],
+        
+        }));
+        
+
+        //图元初始化
+        //设置node、link映射规则
+        render_init();
+
+
+        let simualtion = d3.forceSimulation(nodes)
+            .force('manybody' , d3.forceManyBody().strength(-30))
+            .force('center' , d3.forceCenter(width/2,height/2))
+            .force('link' , d3.forceLink(links).strength(0.1).distance(250))
+            .on('tick' , ticked);
+        console.log(nodes);
+        console.log(links);
+
+
+
+      
+        
+        // Set button positions and styles
+        document.getElementById('k1').style.position = 'absolute';
+        document.getElementById('k1').style.left = '500px';
+        document.getElementById('k1').style.top = '50px';
+        document.getElementById('k1').style.fontSize = '40px';
+
+        document.getElementById('k2').style.position = 'absolute';
+        document.getElementById('k2').style.left = '500px';
+        document.getElementById('k2').style.top = '200px';
+        document.getElementById('k2').style.fontSize = '40px';
+
+        document.getElementById('clear').style.position = 'absolute';
+        document.getElementById('clear').style.left = '500px';
+        document.getElementById('clear').style.top = '400px';
+        document.getElementById('clear').style.fontSize = '40px';
+        
+        document.getElementById('k1').addEventListener('click', () => {
+            circles.attr('stroke', d => d.k >= 1 ? 'orange' : 'none')
+                    .attr('stroke-width', d => d.k >= 1 ? 5 : 0);
+        });
+
+        document.getElementById('k2').addEventListener('click', () => {
+            circles.attr('stroke', d => d.k >= 2 ? 'orange' : 'none')
+                    .attr('stroke-width', d => d.k >= 2 ? 5 : 0);
+        });
+
+        document.getElementById('clear').addEventListener('click', () => {
+            circles.attr('stroke', 'none')
+                    .attr('stroke-width', 0);
+        });
+       
+        
+
+        
+
+      
+    })
+    
+</script>
+</body>
+</html>

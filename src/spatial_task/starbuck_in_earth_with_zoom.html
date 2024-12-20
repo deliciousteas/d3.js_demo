@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>zoom星巴克全球可视化</title>
+    <script src="../../utils/d3.min.js"></script>
+    <script src="../../utils/topojson/topojson.min.js"></script>
+    <style>
+       
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden; /* 去掉滚动条 */
+        }
+        svg {
+            display: block; 
+        }
+    </style>
+</head>
+<body>
+    <svg id="mainsvg"></svg>
+    <script>
+        const svg = d3.select("#mainsvg");
+
+        
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        svg.attr('width', width)
+           .attr('height', height)
+           .attr('viewBox', `0 0 ${width} ${height}`);
+
+       
+        svg.style("background-color", "black");
+
+        
+        const mapGroup = svg.append("g");
+
+        d3.json("https://d3js.org/world-110m.v1.json").then(world => {
+            const projection = d3.geoNaturalEarth1() 
+                .scale(180)
+                .translate([width / 2, height / 2]);
+            const path = d3.geoPath().projection(projection);
+
+            const countries = topojson.feature(world, world.objects.countries);
+
+            mapGroup.append("g")
+                .selectAll("path")
+                .data(countries.features)
+                .join("path")
+                .attr("d", path)
+                .attr("fill", "darkblue")
+                .attr("stroke", "white")
+                .attr("stroke-width", 0.2);
+
+            d3.csv("../../data/spatial_data/directory.csv").then(data => {
+                mapGroup.append("g")
+                    .selectAll("circle")
+                    .data(data)
+                    .join("circle")
+                    .attr("cx", d => projection([+d.Longitude, +d.Latitude])[0]) // 投影 X 坐标
+                    .attr("cy", d => projection([+d.Longitude, +d.Latitude])[1]) // 投影 Y 坐标
+                    .attr("r", 0.1)
+                    .attr("fill", "white")
+                    .attr("stroke", "white")
+                    .attr("stroke-width", 0.6);
+            });
+        });
+
+        // 缩放和拖动功能，优化性能，使用 transform
+        svg.call(d3.zoom()
+            .extent([[0, 0], [width, height]])
+            .scaleExtent([1, 20])
+            .on("zoom", zoomed));
+
+        function zoomed({transform}) {
+            
+            mapGroup.attr("transform", transform);
+        }
+
+        // 更新视图大小时，调整 SVG 尺寸
+        window.addEventListener('resize', () => {
+            const newWidth = window.innerWidth;
+            const newHeight = window.innerHeight;
+            svg.attr('width', newWidth).attr('height', newHeight)
+               .attr('viewBox', `0 0 ${newWidth} ${newHeight}`);
+        });
+    </script>
+</body>
+</html>

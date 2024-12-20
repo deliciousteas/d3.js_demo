@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brush测试</title>
+    </title>
+    <script src="../../utils/d3.min.js"></script>
+
+</head>
+<body>
+    
+    <script>
+
+        
+   
+        /*
+
+      
+        Date:记录1970-1-1起经过的毫秒数。
+        year-monthindex（0-11）
+        可选参数：date（一个月的第几天）、hours、minutes、seconds
+        axis:
+        ticks是刻度下标。访问scale的ticks方法，可以生成一个刻度数组。
+        domain如果是Date的话，可以设置刻度。
+        d3.timeMinute.every(15) 生成一个15分钟的刻度
+        d3.timeHour.every(1) 生成一个小时的刻度,
+        axis.tickSize设置内外高度
+        call 方法是对选择集引入一个函数
+        */
+
+
+        /*
+        1. 缩放表示图像viewbox：min-x、min-y、width、height。记录了viewbox的原点和长宽度。在各个项目中都有viewbox设置width和height。
+        2. 坐标轴：分为主轴、次轴和标签，主轴通常是.domain标签，次轴是line，标签是.tick，在坐标轴中可以使用两次call()方法，第一次是对坐标轴布局、颜色设置，第二次是对坐标轴的标签设计。
+        3. brush交互设计：确定brush交互坐标轴范围，然后监听brush事件，将像素值反转为domain值，再刷新到屏幕上。
+        4. 整体代码逻辑：数据映射范围-X轴布局（位置、颜色、标签）-brush标签设计-元素添加。
+
+
+
+        */
+
+        height =180;
+        width=1200;
+        margin = {top: 20, right: 20, bottom: 20, left: 20};
+        x = d3.scaleTime().domain([new Date(2013,7,1), new Date(2013,7,width/60)-1])
+        .rangeRound([margin.left, width - margin.right]);//在俩之间插值
+        let interval = d3.timeHour.every(12); 
+        
+        xAxis = g => g   
+        .attr("transform", `translate(0,${height - margin.bottom})`)
+        .call(g => g.append("g")
+            .call(d3.axisBottom(x)
+                .ticks(interval)
+                .tickSize(-height + margin.top + margin.bottom)
+                .tickFormat(() => null))
+
+        .call(g => g.select(".domain")//通常指的是scale的domain，是坐标轴的主轴线
+        .attr("fill","#ddd")
+        .attr("stroke","#000"))
+
+        .call(g => g.selectAll(".tick line")
+        .attr("stroke","#fff")
+        .attr("stroke-opacity", d => d <= d3.timeDay(d) ? 1 : 0.5)) // If the date is less than or equal to the start of the day, set opacity to 1, otherwise set it to 0.5
+
+        .call(g => g.append("g")
+            .call(d3.axisBottom(x)
+            .ticks(d3.timeDay)
+            .tickPadding(0))
+            .attr('text-anchor', null)
+            .call(g => g.select(".domain").remove())
+            .call(g =>g.selectAll(".text").attr("x",6))));/
+        
+         const brush =d3.brushX()
+            .extent([[margin.left, margin.top], [width - margin.right, height - margin.bottom]])//定义了brush的起点和终点范围
+            .on("brush",brushed);//监听brush时间，调用brushed函数
+
+        function brushed(event){
+        if(!event.sourceEvent) return;//如果非既定交互事件，则直接返回。
+        const d0 =event.selection.map(x.invert);//event.selection对每次brush返回数字，并将x的像素值通过inverse方法映射为domain值。
+        const d1 = d0.map(interval.round);//四舍五入，更合适。
+       
+
+
+        if(d1[0] >= d1[1]){
+            d1[0] = interval.floor(d0[0]);//用interval方法，向下取整
+            d1[1] = interval.offset(d1[0]);//offset添加有边界
+        }
+
+        d3.select(this).call(brush.move,d1.map(x));//更新刷新区域的位置，将修正后的数据值作为像素值更新到屏幕上
+        }
+
+        const svg = d3.select("body")
+        .append("svg")
+        .attr("viewBox", [0,0,width,height]);
+
+    
+        svg.append("g")
+        .call(xAxis);
+
+        svg.append("g")
+        .call(brush);
+
+    
+    </script>
+</body>
+</html>

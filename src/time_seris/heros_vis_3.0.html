@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>水浒传人物每章节出现可视化</title>
+    <script src="../../utils/d3.min.js"></script>
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+    <div id="container">
+        <div id="main-area">
+            <div id="stack-area"></div>
+            <div id="time-line"></div>
+        </div>
+        <div id="labels">labels</div>
+    </div>
+
+    <script>
+        // =============================
+        // 1. SVG Setup
+        // =============================
+        const timeLineWidth = 1200, timeLineHeight = 600;
+        const stackAreaWidth = 1200, stackAreaHeight = 600;
+
+        // Margins for timelines and stack areas
+        const margin_time_line = { top: 20, right: 20, bottom: 60, left: 20 };
+        const innerWidth_time_line = timeLineWidth - margin_time_line.left - margin_time_line.right;
+        const innerHeight_time_line = timeLineHeight - margin_time_line.top - margin_time_line.bottom;
+
+        const margin_stack_area = { top: 20, right: 20, bottom: 60, left: 60 };
+        const innerWidth_stack_area = stackAreaWidth - margin_stack_area.left - margin_stack_area.right;
+        const innerHeight_stack_area = stackAreaHeight - margin_stack_area.top - margin_stack_area.bottom;
+
+        // Create SVGs
+        const svg_time_line = d3.select("#time-line").append("svg")
+            .attr("width", timeLineWidth)
+            .attr("height", timeLineHeight);
+        const mainGroup_time_line = svg_time_line.append("g")
+            .attr("transform", `translate(${margin_time_line.left}, ${margin_time_line.top})`);
+
+        const svg_stack_area = d3.select("#stack-area").append("svg")
+            .attr("width", stackAreaWidth)
+            .attr("height", stackAreaHeight);
+        const mainGroup_stack_area = svg_stack_area.append("g")
+            .attr("transform", `translate(${margin_stack_area.left}, ${margin_stack_area.top})`);
+
+        // =============================
+        // 2. Load Data
+        // =============================
+        d3.csv("../../data/time_seris//水浒各章节人物出场次数.csv").then(data => {
+            const chapter = data.map(d => +d.chapter);
+            const heros_name = data.columns.slice(1);
+            console.log(`共有${chapter.length}章, ${heros_name.length}个人物`);
+
+            // Summarize total counts per chapter
+            const sum_data = data.map(d => d3.sum(Object.values(d).slice(1)));
+            const time_line_data = chapter.map((c, i) => ({ chapter: c, sum: sum_data[i] }));
+
+            // Sort heroes by appearance times
+            const heros_showup_times = heros_name.map(name => ({
+                name: name,
+                total: d3.sum(data.map(d => +d[name]))
+            })).sort((a, b) => b.total - a.total);
+
+            // =============================
+            // 3. Color Mapping Scheme
+            // =============================
+            const topHeros = heros_showup_times.slice(0, 30).map(d => d.name);
+            const restHeros = heros_showup_times.slice(30).map(d => d.name);
+
+            const colorTop = d3.scaleOrdinal(d3.schemeSet3).domain(topHeros);
+            const colorRest = d3.scaleSequential(d3.interpolateCool).domain([0, restHeros.length]);
+
+            const colorMap = new Map();
+            topHeros.forEach(hero => colorMap.set(hero, colorTop(hero)));
+            restHeros.forEach((hero, i) => colorMap.set(hero, colorRest(i)));
+
+            // =============================
+            // 4. Time-Line Visualization
+            // =============================
+            const xScale_time_line = d3.scaleLinear()
+                .domain(d3.extent(chapter))
+                .range([0, innerWidth_time_line]).nice();
+
+            const yScale_time_line = d3.scaleLinear()
+                .domain([0, d3.max(sum_data)])
+                .range([innerHeight_time_line, 0]).nice();
+
+            // Axes
+            mainGroup_time_line.append('g')
+                .attr('transform', `translate(0, ${innerHeight_time_line})`)
+                .call(d3.axisBottom(xScale_time_line).ticks(chapter.length / 5))
+                .append("text")
+                .attr('x', innerWidth_time_line / 2)
+                .attr('y', 30)
+                .attr("font-size", "12px")
+                .attr("fill", "black")
+                .text('章节');
+
+            mainGroup_time_line.append('g')
+                .call(d3.axisLeft(yScale_time_line))
+                .append("text")
+                .attr('x', 110)
+                .attr('y', 2)
+                .attr('fill', 'black')
+                .attr('font-size', '1em')
+                .text('人物出场总次数/章节');
+                
+            mainGroup_time_line.append('text')
+                .attr('x', innerWidth_time_line / 2)
+                .attr('y', 25)
+                .attr('font-size', '2em')
+                .attr('fill', 'black')
+                .text('水浒传：人物出现总次数');
+
+            // Line
+            const line = d3.line()
+                .x(d => xScale_time_line(d.chapter))
+                .y(d => yScale_time_line(d.sum));
+
+            mainGroup_time_line.append('path')
+                .datum(time_line_data)
+                .attr('fill', 'none')
+                .attr('stroke', 'steelblue')
+                .attr('stroke-width', 4)
+                .attr('d', line);
+
+            // =============================
+            // 5. Stack Area Visualization
+            // =============================
+            const series = d3.stack().keys(heros_name);
+            const stackData = series(data);
+
+            const xScale_stack = d3.scaleLinear().range([0, innerWidth_stack_area]);
+            const yScale_stack = d3.scaleLinear().range([innerHeight_stack_area, 0]).nice();
+
+            const area = d3.area()
+                .x(d => xScale_stack(d.data.chapter))
+                .y0(d => yScale_stack(d[0]))
+                .y1(d => yScale_stack(d[1]))
+                .curve(d3.curveStepAfter);
+
+            function updateStackArea(filteredChapters) {
+                const filteredData = data.filter(d => filteredChapters.includes(+d.chapter));
+                const filteredStack = series(filteredData);
+                const newChapters = filteredData.map(d => +d.chapter);
+
+                // Update scales
+                xScale_stack.domain(d3.extent(filteredData.map(d => +d.chapter)));
+                yScale_stack.domain([0, d3.max(filteredData, d => d3.sum(Object.values(d).slice(1)))])
+
+                // Update paths
+                mainGroup_stack_area.selectAll(".x-axis").remove();
+                mainGroup_stack_area.selectAll(".y-axis").remove();
+                mainGroup_stack_area.append("g").attr("class", "x-axis")
+                    .attr("transform", `translate(0, ${innerHeight_stack_area + 10})`)
+                    .call(d3.axisBottom(xScale_stack).ticks(newChapters.length / 5).tickSize(10).tickPadding(5))
+                    .selectAll("text")
+                    .style("font-weight", "bold");
+                mainGroup_stack_area.append("g").attr("class", "y-axis")
+                    .call(d3.axisLeft(yScale_stack).tickSize(10).tickPadding(5))
+                    .selectAll("text")
+                    .style("font-weight", "bold");
+                mainGroup_stack_area.selectAll("path").remove();
+                mainGroup_stack_area.selectAll("path")
+                    .data(filteredStack)
+                    .join("path")
+                    .attr("fill", d => colorMap.get(d.key))
+                    .attr("d", area)
+                    .append('title')
+                    .text(d => d.key);
+            }
+
+            // Brush interaction
+            const brush = d3.brushX()
+                .extent([[0, 0], [innerWidth_time_line, innerHeight_time_line]])
+                .on("brush end", event => {
+                    if (!event.selection) return;
+                    const [x0, x1] = event.selection.map(xScale_time_line.invert);
+                    const brushedChapters = chapter.filter(d => x0 <= d && d <= x1);
+                    updateStackArea(brushedChapters);
+                });
+
+            mainGroup_time_line.append("g")
+                .attr("class", "brush")
+                .call(brush);
+
+
+                svg_time_line.on("dblclick", () => {
+            mainGroup_time_line.selectAll("path")
+                .attr("stroke", "steelblue");
+            mainGroup_time_line.select(".brush").call(brush.move, null);
+        });
+        });
+    </script>
+</body>
+</html>

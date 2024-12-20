@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="../../utils/d3.min.js"></script>
+    <style>
+       
+        body, html {
+            height: 100%;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f0f0f0; 
+        }
+
+        #mainsvg {
+            display: block;
+            max-width: 100%; 
+            max-height: 100%; 
+        }
+    </style>
+</head>
+<body>
+    <svg width="1200" height="1200" id="mainsvg" class="svg"></svg>
+
+    <script>
+        const svg = d3.select("#mainsvg");
+
+        const width = +svg.attr("width");
+        const height = +svg.attr("height");
+        const margin = {top: 20, right: 30, bottom: 40, left: 50};
+        const innerWidth = width - margin.left - margin.right;
+        const innerHeight = height - margin.top - margin.bottom;
+        const g = svg.append('g').attr('id', 'maingroup')
+            .attr('transform', `translate(${margin.left},${margin.top})`);
+
+        d3.csv("../../data/time_seris/gdp_data_source.csv").then(function(input) {
+            input.forEach(d => {
+                for (let i in d) {
+                    d[i] = +d[i];
+                }
+            });
+            console.log(input);
+
+            let data = input;
+            const x = d3.scaleBand()
+                .domain(data.map(d => d.year))
+                .range([0, innerWidth])
+                .padding(0.1);
+
+            let ymax;
+            for (let i = 0; i < data.length; i++) {
+                let max = 0;
+                for (let j in data[i]) {
+                    if (j !== "year") {
+                        if (data[i][j] > max) {
+                            max = data[i][j];
+                        }
+                    }
+                }
+                ymax = max;
+            }
+
+            const y = d3.scaleLinear()
+                .domain([0, ymax])
+                .range([innerHeight / 2, 0])
+                .nice();
+
+            let years = Array.from(d3.union(data.map(d => d.year)));
+            console.log(years);
+
+            let countries = Object.keys(data[0]).slice(1);
+            console.log(countries);
+
+            const color = d3.scaleOrdinal()
+                .domain(countries)
+                .range(d3.schemeCategory10.concat(d3.schemePaired));
+
+            const series = d3.stack()
+                .keys(countries)
+                .order(d3.stackOrderAscending);
+
+            const stack_series = series(data);
+            console.log(stack_series);
+
+            const area = d3.area()
+                .x(d => x(d.data.year))
+                .y0(d => y(d[0]) / 4)
+                .y1(d => y(d[1]) / 4);
+
+            // Create axes
+            svg.append('g')
+                .attr('transform', `translate(${margin.left + 50},${1100})`)
+                .call(d3.axisBottom(x).tickFormat(d3.format("d")).tickValues(years.filter((d, i) => i % 5 === 0))); //datapoint and index
+
+            svg.append("g")
+                .call(d3.axisLeft(y))
+                .attr('transform', `translate(${105},${530})`)
+                .attr('text', '$');
+
+            svg.append('g')
+                .attr('transform', `translate(110, ${960})`) 
+                .selectAll('path')
+                .data(stack_series)
+                .join('path')
+                .attr('fill', d => color(d.key))
+                .attr('d', area)
+                .append('title')
+                .text(d => d.key);
+            svg.append('text')
+                .attr('transform', `translate(${innerWidth / 2+100},${innerHeight / 2-100})`)
+                .attr('text-anchor', 'middle')
+                .attr('font-size', '2em')
+                .attr('font-weight', 'bold')
+                .attr('fill', 'black')
+                .text('GDP时序可视化');
+
+            svg.selectAll('path') 
+                .on('mouseover', function(event, d) {
+                    svg.selectAll('path')
+                        .attr('fill-opacity', 0.1);
+                    d3.select(this)
+                        .attr('fill-opacity', 1);
+                    g.append('text')
+                        .attr('id', 'tooltip')
+                        .attr('transform', `translate(${event.pageX - margin.left - 50},${event.pageY - margin.top - 50})`)
+                        .attr('text-anchor', 'middle')
+                        .attr('font-size', '12px')
+                        .attr('font-weight', 'bold')
+                        .attr('fill', 'black')
+                        .text(d.key);
+                })
+                .on('mouseout', function() {
+                    svg.selectAll('path')
+                        .attr('fill-opacity', 1);
+                    g.select('#tooltip').remove();
+                });
+        });
+    </script>
+</body>
+</html>

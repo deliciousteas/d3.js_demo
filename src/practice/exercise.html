@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>堆叠面积图测试</title>
+    <script src="../../utils/d3.min.js"></script>
+</head>
+<body>
+    
+<svg width="4000" height="3000" id="mainsvg" class="svg"></svg>
+<script>
+
+
+const svg =d3.select("#mainsvg");
+const width = +svg.attr("width");
+const height = +svg.attr("height");
+
+const margin = {top: 20, right: 30, bottom: 40, left: 50};
+const innerWidth = width - margin.left - margin.right;
+const innerHeight = height - margin.top - margin.bottom;
+const g = svg.append('g').attr('id','maingroup')
+    .attr('transform' , `translate(${margin.left},${margin.top})`);
+
+
+
+d3.csv("../../data/time_seris/gdp_data_source.csv").then(function(input) {
+    
+    
+    input.forEach(d => {
+        let year = +d.year;
+        for (let i in d) { 
+        d[i] =+d[i];    
+            }
+    });
+    console.log(input);
+    let data = input;
+    console.log(data);
+
+    let years = Array.from(d3.union(data.map(d => d.year)));
+
+    var x = d3.scaleBand()
+    .domain(data.map(d => d.year))
+    .range([0,innerWidth])
+    .padding(0.5);
+
+    //获取[{}]中的最大值
+    let ymax;
+    for (let i =0 ; i <data.length; i++){
+        let max =0;
+        for (let j in data[i]){
+            if (j !== "year"){
+                if (data[i][j]>max){
+                    max = data[i][j];
+                }
+            }
+        }
+        ymax = max;
+    }
+    console.log(ymax);
+    var y = d3.scaleLinear()
+        .domain([0,ymax/100000000000])
+        .range([innerHeight,0]);
+
+
+    //数据预处理，将数据转为正确的格式
+   let countries_keys=Object.keys(data[0]).slice(1);
+   //console.log(countries_keys);
+
+    var data_stack=d3.stack()
+    .keys(countries_keys)
+    .order(d3.stackOrderAscending)
+    .offset(d3.stackOffsetNone);
+    console.log(data);
+    var stack1 =data_stack(data);
+    console.log(stack1);
+
+
+    color = d3.scaleOrdinal()
+    .domain(countries_keys)
+    .range(d3.schemeCategory10.concat(d3.schemePaired));
+
+    console.log(color);
+    // (d3.index(data , d =>d.year ,))
+
+    const area = d3.area()
+    .x(d => x(d.data.year))
+    .y0(d => y(d[0]/1000000000000))
+    .y1(d => y(d[1]/1000000000000));
+
+
+    svg.append("g")
+        .attr("transform", "translate(" + margin.left + "," + height + ")")
+        .call(d3.axisBottom(x).tickFormat(d3.format("d")).tickValues(years.filter((d, i) => i % 5 === 0)));
+
+    // Append y axis
+    svg.append("g")
+        .call(d3.axisLeft(y))
+        .attr("transform", "translate(" + margin.left + ",0)");
+
+        svg.append("g")
+                .selectAll("path")
+                .data(stack1)
+                .join("path")
+                .attr("fill", d => color(d.key))
+                .attr("d", area)
+                .append("title")
+                .text(d => d.key);
+
+            console.log("Stacked Data Rendered.");
+   
+});
+
+
+    </script>
+</body>
+</html>

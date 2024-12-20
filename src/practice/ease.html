@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ease_document</title>
+    <script src="../../utils/d3.min.js"></script>
+</head>
+<body>
+    <svg width ="1600" height ="800" id = "mainsvg" class = "svgs" style = 'display:block; margin: 0 auto '></svg>
+
+    <script>
+
+        const svg  = d3.select('#mainsvg');
+
+        var easing_type =[
+            "easeElastic",
+            "easeBounce",
+            "easeLinear",
+            "easeSin",
+            "easeQuad",
+            "easeCubic",
+            "easePoly",
+            "easeCircle",
+            "easeExp",
+            "easeBack"
+        ];
+
+
+        //设计一个function，使得circle在水平轴上由横向移动
+
+
+        function circleTransition(eastyType,ypos)
+        {
+            //1. 创建circle
+            var timecirlce = svg.append('circle') //append是d3.js的方法，对selected element选中的元素添加....
+                .attr("r",20)
+                .attr("fill",' red');
+            repeat();
+
+            function repeat(){
+                timecirlce
+                    .attr('cx',210)
+                    .attr('cy',(90*ypos)+50)
+                    //一定得是transition后面，跟ease类型、duration、attr，顺序无所谓。
+                    .transition()
+                    .ease(eastyType)
+                    .duration(2000)
+                    .attr('cx', 1400)
+                    .transition()
+                    .ease(eastyType)
+                    .attr('cx', 210)
+                    .duration(2000)
+                    
+                    .on("end", function() {
+                        setTimeout(repeat, 1000);
+                    });
+
+            };
+        };
+
+        circleTransition(d3.easeElastic,1);
+        circleTransition(d3.easeBounce,2);
+        circleTransition(d3.easeLinear,3);
+        circleTransition(d3.easeSin,4);
+        circleTransition(d3.easeQuad,5);
+        circleTransition(d3.easeCubic,6);
+        circleTransition(d3.easePoly,7);
+
+
+
+
+    </script>
+</body>
+
+</html>

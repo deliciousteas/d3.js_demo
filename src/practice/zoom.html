@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=<device-width>, initial-scale=1.0">
+    <title>Document</title>
+    <script src="../../utils/d3.min.js"></script>
+</head>
+<body>
+    <script>
+
+
+
+const width = 800;
+const height = 600;
+const r = 1.5;
+
+// 创建 SVG 容器
+const svg = d3.select("body")
+    .append("svg")
+    .attr("width", width)
+    .attr("height", height)
+    .style("background-color", "#f0f0f0");
+
+// 创建主组用于容纳所有可缩放的元素
+const mainGroup = svg.append("g");
+
+// 示例数据点
+const data = d3.range(1000).map(() => [
+    Math.random() * width,
+    Math.random() * height
+]);
+
+// 创建缩放行为
+const zoomBehaviour = d3.zoom()
+    .scaleExtent([1, 8]) // 设置缩放范围
+    .on("zoom", ({ transform }) => zoomed(transform));
+
+// 将缩放行为绑定到 SVG 容器
+svg.call(zoomBehaviour);
+
+// 绘制初始的点
+mainGroup.selectAll("circle")
+    .data(data)
+    .join("circle")
+    .attr("cx", d => d[0])
+    .attr("cy", d => d[1])
+    .attr("r", r)
+    .attr("fill", "steelblue");
+
+// 缩放行为函数
+function zoomed(transform) {
+    mainGroup.attr("transform", transform); // 应用缩放和平移到主组
+}
+
+// 初始化缩放
+zoomed(d3.zoomIdentity);
+
+    </script>
+</body>
+</html>
