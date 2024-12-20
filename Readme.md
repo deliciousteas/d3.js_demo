@@ -1,6 +1,9 @@
 # D3.js可视化<br>
 本代码库记录D3.js在图可视化、空间可视化和时序可视化的案例代码。<br>
-可视化效果录屏：[bilibili]()
+可视化效果录屏：[bilibili]()<br>
+
+![d3 js可视化头图参考](https://github.com/user-attachments/assets/a1d95b25-c035-4831-bb90-e7c3ab0c6fe0)
+
 # 参考资源
 ## D3.js
 [D3.js官方文档](https://d3js.org/getting-started)<br>
